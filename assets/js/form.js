@@ -48,6 +48,17 @@
     };
   
     // ---------- Utilities ----------
+    const LUBE_TYPES = [
+      'MOBIL UNIREX EP2',
+      'MOBIL MOBILITH SHC 460',
+      'MOBIL GEAR MS100',
+      'SHELL MORLINA S3 BA 220',
+      'SHELL OMALA S4 WE 220',
+      'SHELL OMALA S2 GX 460',
+      'SHELL TELLUS S2 MX 32',
+      'SHELL TELLUS S2 MX 68'
+    ];
+  
     function norm(s) { return String(s || '').trim().toLowerCase(); }
     function todayISO() { return new Date().toISOString().slice(0, 10); }
     function nowHHMM() { return new Date().toTimeString().slice(0, 5); }
@@ -66,7 +77,7 @@
       setTimeout(() => t.remove(), ms);
     }
   
-    // Autosave (draft) — protects against accidental reloads
+    // Autosave (draft)
     const DRAFT_KEY = 'qaqc_form_draft_v1';
   
     function saveDraft() {
@@ -108,36 +119,32 @@
       const ok = allowedRouteCodes.includes(code);
       els.formBody.classList.toggle('hidden', !ok);
       els.routeGate.classList.toggle('hidden', ok);
-  
-      if (ok && document.querySelectorAll('.asset-entry').length === 0) {
-        addAssetEntry(); // Ensure at least one entry exists
-      }
+      if (ok && document.querySelectorAll('.asset-entry').length === 0) addAssetEntry();
     }
   
     // ---------- Asset entry template ----------
     function wireEntryDynamicBehaviours(scope) {
-      // Attach image previews for file inputs Q1..Q7
-      ['1', '2', '3', '4', '5', '6', '7'].forEach(n => {
+      // images Q1..Q7
+      ['1','2','3','4','5','6','7'].forEach(n => {
         const input = scope.querySelector(`#q${n}_img`);
         const thumbs = scope.querySelector(`#q${n}_thumbs`);
         if (!input || !thumbs) return;
         input.addEventListener('change', () => {
           thumbs.innerHTML = '';
           Array.from(input.files || []).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
+            const r = new FileReader();
+            r.onload = ev => {
               const img = document.createElement('img');
               img.src = ev.target.result;
               thumbs.appendChild(img);
             };
-            reader.readAsDataURL(file);
+            r.readAsDataURL(file);
           });
         });
       });
   
-      // Follow-ups show/hide based on radio selection
       function wireQuestion(qn, showOnValue) {
-        const sec = scope.querySelector('section.q[data-q="' + qn + '"]');
+        const sec = scope.querySelector(`section.q[data-q="${qn}"]`);
         if (!sec) return;
         const follow = sec.querySelector('.followup');
         const radios = sec.querySelectorAll('input[type=radio]');
@@ -146,37 +153,25 @@
           else if (r.checked) follow.style.display = 'none';
         }));
       }
-      wireQuestion('1', 'No'); wireQuestion('2', 'Yes'); wireQuestion('3', 'No');
-      wireQuestion('4', 'Yes'); wireQuestion('5', 'Yes'); wireQuestion('6', 'No'); wireQuestion('7', 'No');
+      wireQuestion('1','No'); wireQuestion('2','Yes'); wireQuestion('3','No');
+      wireQuestion('4','Yes'); wireQuestion('5','Yes'); wireQuestion('6','No'); wireQuestion('7','No');
   
-      // Numeric guard for 1B amount
       const amtField = scope.querySelector('.amt_value');
       if (amtField) {
         amtField.addEventListener('input', () => {
-          let v = amtField.value.replace(/[^0-9.]/g, '');
+          let v = amtField.value.replace(/[^0-9.]/g,'');
           const dot = v.indexOf('.');
-          if (dot !== -1) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '');
+          if (dot !== -1) v = v.slice(0, dot+1) + v.slice(dot+1).replace(/\./g,'');
           amtField.value = v;
         });
       }
   
-      // Remove entry
-      const removeBtn = scope.querySelector('.btn-remove-entry');
-      if (removeBtn) {
-        removeBtn.addEventListener('click', () => {
-          const all = document.querySelectorAll('.asset-entry');
-          if (all.length === 1) {
-            alert('At least one asset entry is required.');
-            return;
-          }
-          scope.remove();
-          saveDraft();
-        });
-      }
-  
-      // Add entry
-      const addBtn = scope.querySelector('.btn-add-entry');
-      if (addBtn) addBtn.addEventListener('click', () => { addAssetEntry(); saveDraft(); });
+      scope.querySelector('.btn-remove-entry')?.addEventListener('click', () => {
+        const all = document.querySelectorAll('.asset-entry');
+        if (all.length === 1) { alert('At least one asset entry is required.'); return; }
+        scope.remove(); saveDraft();
+      });
+      scope.querySelector('.btn-add-entry')?.addEventListener('click', () => { addAssetEntry(); saveDraft(); });
     }
   
     async function buildPerEntryAssetAutocomplete(entry, ids, eid) {
@@ -187,18 +182,14 @@
         data: ids,
         onPick: (line) => updateAssetPhotoIn(entry, line)
       });
-  
-      const entryAssetInput = entry.querySelector(`#asset_search_${eid}`);
-      entryAssetInput.addEventListener('input', () => {
-        const v = entryAssetInput.value.trim().toLowerCase();
+      const inp = entry.querySelector(`#asset_search_${eid}`);
+      const sync = () => {
+        const v = inp.value.trim().toLowerCase();
         const exact = ids.find(d => d.toLowerCase() === v);
         updateAssetPhotoIn(entry, exact || '');
-      });
-      entryAssetInput.addEventListener('change', () => {
-        const v = entryAssetInput.value.trim().toLowerCase();
-        const exact = ids.find(d => d.toLowerCase() === v);
-        updateAssetPhotoIn(entry, exact || '');
-      });
+      };
+      inp.addEventListener('input', sync);
+      inp.addEventListener('change', sync);
     }
   
     function updateAssetPhotoIn(scope, assetName) {
@@ -206,13 +197,7 @@
       const img = scope.querySelector('.asset-photo');
       const hint = scope.querySelector('.asset-photo-hint');
       if (!wrap || !img || !hint) return;
-  
-      if (!assetName) {
-        wrap.classList.add('hidden');
-        img.src = '';
-        hint.textContent = '';
-        return;
-      }
+      if (!assetName) { wrap.classList.add('hidden'); img.src=''; hint.textContent=''; return; }
       const imgPath = `Images/${assetName}.png`;
       img.onload = () => wrap.classList.remove('hidden');
       img.onerror = () => { wrap.classList.add('hidden'); console.warn(`Image not found: ${imgPath}`); };
@@ -225,8 +210,10 @@
       entry.className = 'asset-entry';
       const eid = crypto.randomUUID();
   
+      // Build lubricant type options
+      const lubeOptions = LUBE_TYPES.map(x=>`<option>${x}</option>`).join('');
+  
       entry.innerHTML = `
-        <!-- Per-entry asset selector -->
         <section class="q" data-q="asset">
           <h4>Equipment / Asset ID</h4>
           <div class="ac-wrap">
@@ -277,14 +264,7 @@
           <div style="margin-top:10px">
             <label class="hint">Lubricant Type</label>
             <select class="ac-input lubricant_type" style="border-width:1px">
-              <option>MOBIL UNIREX EP2</option>
-              <option>MOBIL MOBILITH SHC 460</option>
-              <option>MOBIL GEAR MS100</option>
-              <option>SHELL MORLINA S3 BA 220</option>
-              <option>SHELL OMALA S4 WE 220</option>
-              <option>SHELL OMALA S2 GX 460</option>
-              <option>SHELL TELLUS S2 MX 32</option>
-              <option>SHELL TELLUS S2 MX 68</option>
+              ${lubeOptions}
             </select>
           </div>
           <div class="hint" style="margin-top:6px">Enter numbers only (decimals allowed). Leave blank if not applicable.</div>
@@ -334,7 +314,7 @@
   
         <section class="q" data-q="5">
           <h4>5 — Was the purged grease hardened or visually degraded compared to new grease?</h4>
-          <div class="hint">Use the reference strip below for examples (oil separation, hardening, contamination, starvation, thermal degradation).</div>
+          <div class="hint">Use the reference strip below for examples.</div>
           <img class="ref-img" src="Images/Grease-Evaluation_Chart.png" alt="Grease Degradation Reference" />
           <div class="opts" style="margin-top:8px;">
             <label><input type="radio" name="q5_${eid}" value="Yes"> Yes</label>
@@ -389,7 +369,7 @@
   
       els.assetEntries.appendChild(entry);
   
-      // Get Asset IDs from CSV (cached offline by SW)
+      // Asset IDs (CSV or fallback)
       let assetIDs = FALLBACK_ASSET_IDS;
       try {
         const rows = await window.appCore.parseCSV('assets/data/assets.csv');
@@ -397,9 +377,7 @@
         const idxHeader = headers.find(h => norm(h) === 'equipment / asset id') || headers[0];
         const ids = Array.from(new Set(rows.map(r => String(r[idxHeader] || '').trim()).filter(Boolean)));
         if (ids.length) assetIDs = ids;
-      } catch (e) {
-        // keep fallback
-      }
+      } catch {}
   
       await buildPerEntryAssetAutocomplete(entry, assetIDs, eid);
       wireEntryDynamicBehaviours(entry);
@@ -408,11 +386,7 @@
     // ---------- Validation & email body ----------
     function ensureWoOrAlert() {
       const wo = (els.wo_number.value || '').trim();
-      if (!wo) {
-        alert('Please, enter Assigned WO#.');
-        els.wo_number.focus();
-        return null;
-      }
+      if (!wo) { alert('Please, enter Assigned WO#.'); els.wo_number.focus(); return null; }
       return wo;
     }
   
@@ -420,14 +394,11 @@
       const firstEntryAsset = document.querySelector('.asset-entry input[id^="asset_search_"]');
       if (!firstEntryAsset || !firstEntryAsset.value.trim()) {
         alert('Please select the Equipment / Asset ID for the first entry.');
-        firstEntryAsset?.focus();
-        return false;
+        firstEntryAsset?.focus(); return false;
       }
-  
       for (let i = 1; i <= 7; i++) {
         const radios = document.querySelectorAll(`input[name^="q${i}_"]`);
-        const anyChecked = Array.from(radios).some(r => r.checked);
-        if (!anyChecked) {
+        if (!Array.from(radios).some(r => r.checked)) {
           alert(`Please answer question ${i} before submitting.`);
           radios[0]?.scrollIntoView({ behavior: "smooth", block: "center" });
           return false;
@@ -436,22 +407,16 @@
       const amt = document.querySelector(".amt_value");
       if (!amt || !amt.value.trim()) {
         alert("Please fill in question 1B (Amount of lubricant inserted/filled).");
-        amt?.scrollIntoView({ behavior: "smooth", block: "center" });
-        amt?.focus();
-        return false;
+        amt?.scrollIntoView({ behavior: "smooth", block: "center" }); amt?.focus(); return false;
       }
       const comments = document.querySelector(".entry-comments");
       if (!comments || !comments.value.trim()) {
         alert("Please provide a comment for question 8 (Additional comments).");
-        comments?.scrollIntoView({ behavior: "smooth", block: "center" });
-        comments?.focus();
-        return false;
+        comments?.scrollIntoView({ behavior: "smooth", block: "center" }); comments?.focus(); return false;
       }
-  
       if (!els.exec_name?.value.trim()) { alert('Please enter the Inspector / Technician name.'); els.exec_name?.focus(); return false; }
       if (!els.exec_date?.value) { alert('Please enter the execution date.'); els.exec_date?.focus(); return false; }
       if (!els.exec_time?.value) { alert('Please enter the execution time.'); els.exec_time?.focus(); return false; }
-  
       return true;
     }
   
@@ -466,18 +431,17 @@
     }
   
     function buildStatusAndBody() {
-      const redItems = [];
-      if (qVal(1) === 'No') redItems.push(`Lubrication point issues during the Lubrication Process.\nComments: ${getFollowupComment('1')}`);
-      if (qVal(2) === 'Yes') redItems.push(`Inconsistency in the volume added to the lubrication point.\nComments: ${getFollowupComment('2')}`);
-      if (qVal(3) === 'No') redItems.push(`Impact on Condition of the lubrication related components.\nComments: ${getFollowupComment('3')}`);
-      if (qVal(4) === 'Yes') redItems.push(`Damage or leakage identified in the lubricated point.\nComments: ${getFollowupComment('4')}`);
-      if (qVal(5) === 'Yes') redItems.push(`Lubricant consistency out of spec.\nComments: ${getFollowupComment('5')}`);
-      if (qVal(6) === 'No') redItems.push(`Issues with the lubrication point Identification found.\nComments: ${getFollowupComment('6')}`);
-      if (qVal(7) === 'No') redItems.push(`Safety related issues identified during lubrication.\nComments: ${getFollowupComment('7')}`);
+      const red = [];
+      if (qVal(1) === 'No') red.push(`Lubrication point issues.\nComments: ${getFollowupComment('1')}`);
+      if (qVal(2) === 'Yes') red.push(`Inconsistency in volume added.\nComments: ${getFollowupComment('2')}`);
+      if (qVal(3) === 'No') red.push(`Components condition issue.\nComments: ${getFollowupComment('3')}`);
+      if (qVal(4) === 'Yes') red.push(`Damage/leakage identified.\nComments: ${getFollowupComment('4')}`);
+      if (qVal(5) === 'Yes') red.push(`Lubricant consistency out of spec.\nComments: ${getFollowupComment('5')}`);
+      if (qVal(6) === 'No') red.push(`Label/ID issue.\nComments: ${getFollowupComment('6')}`);
+      if (qVal(7) === 'No') red.push(`Safety/access concern.\nComments: ${getFollowupComment('7')}`);
   
-      const isGreen = redItems.length === 0;
-  
-      const metaInfo = [
+      const isGreen = red.length === 0;
+      const meta = [
         `Business Unit: ${els.business_unit.value}`,
         `Department: ${els.department.value}`,
         `WO#: ${els.wo_number.value || '—'}`,
@@ -488,60 +452,57 @@
         `Execution Time: ${els.exec_time?.value || '—'}`
       ];
   
-      let bodyLines = [];
-      if (isGreen) {
-        bodyLines.push('QA/QC Performed - Green STATUS 🟢\n');
-        bodyLines.push(...metaInfo);
-        bodyLines.push('\nNo issues found.');
-      } else {
-        bodyLines.push('QA/QC Performed - RED STATUS 🔴\n');
-        bodyLines.push('Highlights that can better looked at the PDF report attached\n');
-        bodyLines.push(...metaInfo);
-        bodyLines.push('\n' + '# ------ # ------ # ------ # ------ # ------ #');
-        bodyLines.push(redItems.join('\n\n'));
+      let body = [];
+      if (isGreen) { body.push('QA/QC Performed - Green STATUS 🟢\n', ...meta, '\nNo issues found.'); }
+      else {
+        body.push('QA/QC Performed - RED STATUS 🔴\n',
+          'Highlights that can better looked at the PDF report attached\n',
+          ...meta,
+          '\n# ------ # ------ # ------ # ------ # ------ #',
+          red.join('\n\n'));
       }
-      return { isGreen, bodyText: bodyLines.join('\n') };
+      return { isGreen, bodyText: body.join('\n') };
     }
   
     function buildSubject() {
       const wo = els.wo_number.value || 'TIN-XXXXX';
       const { isGreen } = buildStatusAndBody();
-      const statusText = isGreen ? 'Green Status 🟢' : 'Red Status 🔴';
-      return `QA/QC Execution Report - WO# ${wo} - ${statusText}`;
+      return `QA/QC Execution Report - WO# ${wo} - ${isGreen ? 'Green Status 🟢' : 'Red Status 🔴'}`;
     }
   
-    // ---------- Consumption persistence ----------
+    // ---------- SAVE to consumption_v1 (what consumption.js reads) ----------
     function persistConsumptionFromEntries() {
-      const k = 'QAQC_CONSUMPTION_V1';
-      const list = JSON.parse(localStorage.getItem(k) || '[]');
+      const KEY = 'consumption_v1';
+      const list = JSON.parse(localStorage.getItem(KEY) || '[]');
   
-      // Date/time for records
-      let dt;
+      // Timestamp from exec date/time
+      let ts = Date.now();
       try {
         const iso = `${els.exec_date.value}T${els.exec_time.value}:00`;
-        dt = new Date(iso);
-        if (Number.isNaN(dt.getTime())) dt = new Date();
-      } catch { dt = new Date(); }
+        const d = new Date(iso);
+        if (!Number.isNaN(d.getTime())) ts = d.getTime();
+      } catch {}
   
-      // Iterate each asset entry, store if amount > 0
       const entries = document.querySelectorAll('.asset-entry');
       let last = null;
   
       entries.forEach(entry => {
-        const asset = entry.querySelector('input[id^="asset_search_"]')?.value?.trim() || '';
+        const assetId = entry.querySelector('input[id^="asset_search_"]')?.value?.trim() || '';
         const amtStr = entry.querySelector('.amt_value')?.value?.trim() || '';
         const amount = Number(amtStr);
         const unit = entry.querySelector('input[name^="amt_unit_"]:checked')?.value || 'g';
         const lubricantType = entry.querySelector('.lubricant_type')?.value || '';
   
-        if (asset && amount > 0 && lubricantType) {
+        if (assetId && amount > 0 && lubricantType) {
           const rec = {
-            wo: els.wo_number.value.trim(),
-            asset,
-            lubricantType,
+            id: (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)),
+            woNumber: els.wo_number.value.trim(),
+            assetId,
+            lubricant: '',               // optional free-text (you removed it on the form)
             amount,
             unit,
-            date: dt.toISOString()
+            lubricatorType: lubricantType, // we reuse the field name expected by consumption.js
+            timestamp: ts
           };
           list.push(rec);
           last = rec;
@@ -549,8 +510,8 @@
       });
   
       if (last) {
-        localStorage.setItem(k, JSON.stringify(list));
-        localStorage.setItem('QAQC_LAST_SUBMISSION', JSON.stringify(last));
+        localStorage.setItem(KEY, JSON.stringify(list));
+        localStorage.setItem('QAQC_LAST_SUBMISSION', JSON.stringify(last)); // optional helper
         showToast('Consumption saved to log ✓', 'info', 1800);
       }
     }
@@ -565,10 +526,8 @@
       const element = els.captureArea;
   
       const fillFormValuesInClone = (doc) => {
-        // Copy values to the cloned DOM, and style radios so html2canvas paints them.
         doc.querySelectorAll('#captureArea input, #captureArea textarea, #captureArea select').forEach(el => {
           const type = (el.getAttribute('type') || '').toLowerCase();
-          // Find the live element that matches this clone
           let live = null;
           if (el.id) live = document.getElementById(el.id);
           if (!live && (type === 'radio' || type === 'checkbox') && el.name) {
@@ -579,7 +538,6 @@
           if (type === 'radio' || type === 'checkbox') {
             el.checked = !!live.checked;
             if (el.checked) el.setAttribute('checked', 'checked'); else el.removeAttribute('checked');
-            // Make radios visible in canvas by removing native appearance and drawing a dot
             if (type === 'radio') {
               el.style.appearance = 'none';
               el.style.webkitAppearance = 'none';
@@ -597,19 +555,11 @@
           }
   
           if (el.tagName.toLowerCase() === 'textarea') {
-            el.value = live.value;
-            el.textContent = live.value;
-            el.defaultValue = live.value;
-            return;
+            el.value = live.value; el.textContent = live.value; el.defaultValue = live.value; return;
           }
-  
-          // text/date/time/number/etc.
-          el.value = live.value;
-          el.setAttribute('value', live.value);
-          el.defaultValue = live.value;
+          el.value = live.value; el.setAttribute('value', live.value); el.defaultValue = live.value;
         });
   
-        // Inject minimal print style for inputs
         const style = doc.createElement('style');
         style.textContent = `
           #captureArea input, #captureArea textarea, #captureArea select {
@@ -624,14 +574,10 @@
         margin: [10, 10, 10, 10],
         filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2, useCORS: true, scrollY: 0,
-          onclone: (clonedDoc) => fillFormValuesInClone(clonedDoc)
-        },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, onclone: (d)=>fillFormValuesInClone(d) },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
   
-      // Using local vendor file (cached by SW)
       html2pdf().from(element).set(opt).save().finally(() => {
         toHide.forEach(el => el.classList.remove('hidden'));
       });
@@ -642,26 +588,18 @@
       if (!ensureWoOrAlert()) return;
       if (!validateMandatoryQuestions()) return;
   
-      // Persist consumption records for the chart/table
+      // Save for the Consumption page (correct key & schema)
       persistConsumptionFromEntries();
   
       const subject = buildSubject();
       const { bodyText } = buildStatusAndBody();
       const mailto = `mailto:${encodeURIComponent(RECIPIENT)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
   
-      // Launch email client
       window.location.href = mailto;
   
-      // Generate PDF shortly after
       setTimeout(() => {
         downloadPDF();
-  
-        // Optional: success toast + clear form + clear draft
-        setTimeout(() => {
-          clearForm();
-          clearDraft();
-          showToast('Form submitted ✅', 'info', 2200);
-        }, 500);
+        setTimeout(() => { clearForm(); clearDraft(); showToast('Form submitted ✅', 'info', 2200); }, 500);
       }, 350);
     }
   
@@ -669,43 +607,30 @@
       if (!ensureWoOrAlert()) return;
       if (!validateMandatoryQuestions()) return;
   
-      // Save records even if just printing (keeps data consistent)
+      // Also persist when printing-only
       persistConsumptionFromEntries();
       downloadPDF();
     }
   
     function clearForm() {
-      // wipe top meta
-      ['business_unit', 'department', 'wo_number', 'route_search'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
-      });
-      // execution
+      ['business_unit','department','wo_number','route_search'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
       if (els.exec_name) els.exec_name.value = '';
       if (els.exec_date) els.exec_date.value = '';
       if (els.exec_time) els.exec_time.value = '';
   
-      // reset gate & entries
       els.formBody.classList.add('hidden');
       els.routeGate.classList.remove('hidden');
       els.assetEntries.innerHTML = '';
-  
-      // draft cleared by caller
     }
   
     // ---------- Init ----------
     async function init() {
-      // Printed timestamp already done in page script; set execution defaults if empty
       if (els.exec_date && !els.exec_date.value) els.exec_date.value = todayISO();
       if (els.exec_time && !els.exec_time.value) els.exec_time.value = nowHHMM();
   
-      // Wire autosave on all inputs
-      document.addEventListener('input', (e) => {
-        if (e.target.closest('#captureArea')) saveDraft();
-      });
-      // Restore draft (if any)
+      document.addEventListener('input', (e) => { if (e.target.closest('#captureArea')) saveDraft(); });
       loadDraft();
   
-      // Build Route autocomplete
       window.appCore.buildAutocomplete({
         inputId: 'route_search',
         panelId: 'route_panel',
@@ -714,7 +639,6 @@
         onPick: (line) => applyGateFromValue(line)
       });
   
-      // Route change handler (accepts code or "CODE - desc")
       els.route_search.addEventListener('change', e => {
         const v = e.target.value.trim();
         const code = v.includes(' - ') ? v.split(' - ')[0] : v;
@@ -724,17 +648,15 @@
         saveDraft();
       });
   
-      // Wire top-level buttons
       els.submitBtn.addEventListener('click', submitThenPdf);
       els.printBtn.addEventListener('click', printPdfClicked);
       els.clearBtn.addEventListener('click', () => { clearForm(); clearDraft(); showToast('Form cleared', 'info'); });
   
-      // If gate already has a permitted route (draft), ensure an entry exists
       applyGateFromValue(els.route_search.value);
     }
   
     document.addEventListener('DOMContentLoaded', init);
   
-    // (Removed: stray chart bootstrap that referenced a canvas not on this page)
+    // (removed: any stray chart bootstrapping — this page doesn’t own the chart)
   })();
   
