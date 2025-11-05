@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lubrication Program – QA/QC Checklist</title>
 
+  <!-- Base path ensures relative URLs work both locally and on GitHub Pages -->
+  <base href="./">
+
   <!-- Manifest for PWA -->
   <link rel="manifest" href="manifest.webmanifest">
 
-  <!-- Main CSS -->
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="assets/css/styles.css" />
 
   <style>
-    /* Ensures radios look orange even in browsers that override input styling */
-    input[type="radio"]:checked {
-      accent-color: #ff4d00;
-    }
+    /* Inline fallback styles for form visuals */
+    input[type="radio"]:checked { accent-color: #ff4d00; }
     .btn-secondary {
       background: #444;
       color: #fff;
@@ -24,11 +25,9 @@
       padding: 10px 16px;
       border-radius: 10px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all .15s ease;
     }
-    .btn-secondary:hover {
-      opacity: 0.9;
-    }
+    .btn-secondary:hover { opacity: .9; }
   </style>
 </head>
 
@@ -78,22 +77,25 @@
       </div>
     </section>
 
-    <!-- LOCK SCREEN MESSAGE -->
+    <!-- LOCK MESSAGE -->
     <div id="routeGate" class="gate">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 2l10 18H2L12 2zM12 9v5M12 17h.01"
           stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <div>Select one Work Instruction / Route ID to proceed. For example: <strong>W3ELL0037</strong>.</div>
+      <div>
+        Select one Work Instruction / Route ID to proceed.
+        <br />For example: <strong>W3ELL0037</strong>.
+      </div>
     </div>
 
-    <!-- FORM BODY (HIDDEN UNTIL ROUTE UNLOCKED) -->
+    <!-- FORM BODY (HIDDEN UNTIL ROUTE SELECTED) -->
     <div id="formBody" class="hidden">
       <div class="divider"></div>
       <div id="assetEntries"></div>
       <div class="divider"></div>
 
-      <!-- EXECUTION INFO -->
+      <!-- EXECUTION SECTION -->
       <section class="q" id="execution">
         <h4>Execution</h4>
         <div class="row">
@@ -120,13 +122,14 @@
     </div>
   </div>
 
-  <!-- Vendor libraries (offline-ready) -->
+  <!-- Vendor libraries (loaded once, correct order) -->
+  <script src="assets/js/vendor/chart.umd.min.js"></script>
   <script src="assets/js/vendor/html2pdf.bundle.min.js"></script>
 
-  <!-- Shared app utilities -->
+  <!-- Core app logic -->
   <script src="assets/js/app-core.js"></script>
 
-  <!-- Form logic -->
+  <!-- Page-specific logic -->
   <script src="assets/js/form.js"></script>
 
   <!-- Service Worker registration -->
@@ -135,14 +138,11 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .catch(err => console.error('SW registration failed:', err));
+        navigator.serviceWorker
+          .register('./sw.js', { scope: './' })
+          .catch(err => console.error('Service worker registration failed:', err));
       });
     }
   </script>
-
-  <script src="assets/js/vendor/chart.umd.min.js"></script>
-  <script src="assets/js/vendor/html2pdf.bundle.min.js"></script>
-
 </body>
 </html>
