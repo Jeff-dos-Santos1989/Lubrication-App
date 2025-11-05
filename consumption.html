@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lubricant Consumption</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .page{ max-width: 1060px }
+    header{ display:grid; grid-template-columns:160px 1fr; gap:16px; align-items:center; margin-bottom:8px; }
+    header img{ max-width:160px; height:auto }
+    .hdr-note{ text-align:right; font-size:12px; color:var(--muted) }
+    .title{ font-size:22px; font-weight:700; margin:8px 0 16px }
+    .divider{ border-top:2px solid var(--line); margin:16px 0 24px }
+
+    .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px }
+    .row{ display:grid; grid-template-columns:160px 1fr; gap:10px; align-items:center }
+    .lbl{ color:var(--brand); font-weight:700 }
+    .hint{ font-size:12px; color:var(--muted) }
+    .actions{ display:flex; gap:12px; justify-content:flex-end; margin-top:16px }
+    .btn{ border:none; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700; color:#fff; background:var(--brand) }
+    .btn-secondary{ background:#444 }
+    .btn-ghost{ background:#999 }
+
+    .chart-wrap{ height: 380px; margin-top: 8px }
+    table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden }
+    th,td{ padding:10px 12px; border-top:1px solid var(--line); font-size:14px; }
+    th{ text-align:left; color:var(--brand) }
+
+    @media (max-width: 720px){
+      .row{ grid-template-columns:1fr }
+      header{ grid-template-columns:1fr; gap:8px }
+      .hdr-note{ text-align:left }
+      .grid-2, .grid-3{ grid-template-columns:1fr }
+      .chart-wrap{ height: 320px }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <header>
+      <img src="Images/Logo_ArcelorMittal.png" alt="ArcelorMittal">
+      <div class="hdr-note">
+        Consult the electronic version for the current information: printed – <span id="printedAt"></span>
+      </div>
+    </header>
+
+    <div class="title">Lubricant Consumption</div>
+    <div class="divider"></div>
+
+    <!-- Chart controls -->
+    <section class="card">
+      <div class="grid-3">
+        <div class="row">
+          <div class="lbl">Period</div>
+          <div>
+            <select id="cons_period" class="ac-input" style="border-width:1px">
+              <option value="month">Monthly</option>
+              <option value="year" selected>Yearly</option>
+              <option value="5y">5-Year Buckets</option>
+            </select>
+            <div class="hint">Yearly shows a Plan vs Actual overlay.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="lbl">Group By</div>
+          <div>
+            <select id="cons_groupby" class="ac-input" style="border-width:1px">
+              <option value="total" selected>Total</option>
+              <option value="lubricantType">Lubricant Type</option>
+              <option value="assetId">Asset ID</option>
+            </select>
+            <div class="hint">Tip: to avoid mixing units, group by Lubricant Type.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="lbl">Actions</div>
+          <div class="actions" style="justify-content:flex-start">
+            <button id="btnExportCsv" class="btn">Export CSV</button>
+            <a class="btn-secondary btn" href="index.html">Back to Home</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="cons_chart" aria-label="Consumption chart"></canvas>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Filters -->
+    <section class="card">
+      <h3 style="margin:0 0 12px">Filters</h3>
+      <div class="grid-3">
+        <div>
+          <label class="hint">Assigned WO#</label>
+          <input id="f_wo" type="text" class="ac-input" placeholder="e.g., TIN-123456" style="border-width:1px">
+        </div>
+        <div>
+          <label class="hint">Equipment / Asset ID</label>
+          <input id="f_asset" type="text" class="ac-input" placeholder="Search asset..." style="border-width:1px">
+        </div>
+        <div>
+          <label class="hint">Lubricant Type</label>
+          <select id="f_type" class="ac-input" style="border-width:1px">
+            <option value="">All Lubricant Types</option>
+            <option>MOBIL UNIREX EP2</option>
+            <option>MOBIL MOBILITH SHC 460</option>
+            <option>MOBIL GEAR MS100</option>
+            <option>SHELL MORLINA S3 BA 220</option>
+            <option>SHELL OMALA S4 WE 220</option>
+            <option>SHELL OMALA S2 GX 460</option>
+            <option>SHELL TELLUS S2 MX 32</option>
+            <option>SHELL TELLUS S2 MX 68</option>
+          </select>
+        </div>
+        <div>
+          <label class="hint">From (date)</label>
+          <input id="f_from" type="date" class="ac-input" style="border-width:1px">
+        </div>
+        <div>
+          <label class="hint">To (date)</label>
+          <input id="f_to" type="date" class="ac-input" style="border-width:1px">
+        </div>
+        <div class="actions" style="align-items:end; justify-content:flex-start">
+          <button id="btnApplyFilters" class="btn" type="button">Apply</button>
+          <button id="btnClearFilters" class="btn-ghost btn" type="button">Clear</button>
+          <button id="btnImportCsv" class="btn-ghost btn" type="button">Import CSV</button>
+          <input id="imp_file" type="file" accept=".csv,text/csv" style="display:none">
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Table -->
+    <section class="card">
+      <h3 style="margin:0 0 12px">Logged Consumption</h3>
+      <div style="overflow:auto">
+        <table id="cons_table">
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>Assigned WO#</th>
+              <th>Equipment / Asset ID</th>
+              <th>Lubricant Type</th>
+              <th style="text-align:right">Amount</th>
+              <th>Unit</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Quick add -->
+    <section class="card">
+      <h3 style="margin:0 0 12px">Add Consumption Record</h3>
+      <div class="grid-3">
+        <div>
+          <label class="hint">Assigned WO#</label>
+          <input id="c_wo" type="text" class="ac-input" placeholder="TIN-123456" style="border-width:1px">
+        </div>
+        <div>
+          <label class="hint">Equipment / Asset ID</label>
+          <input id="c_asset" type="text" class="ac-input" placeholder="Asset ID" style="border-width:1px">
+        </div>
+
+        <div>
+          <label class="hint">Amount</label>
+          <input id="c_amount" type="number" inputmode="decimal" min="0" step="0.001" class="ac-input" placeholder="0.000" style="border-width:1px">
+        </div>
+        <div>
+          <label class="hint">Unit</label>
+          <select id="c_unit" class="ac-input" style="border-width:1px">
+            <option>g</option>
+            <option>L</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="hint">Lubricant Type</label>
+          <select id="c_type" class="ac-input" style="border-width:1px">
+            <option>MOBIL UNIREX EP2</option>
+            <option>MOBIL MOBILITH SHC 460</option>
+            <option>MOBIL GEAR MS100</option>
+            <option>SHELL MORLINA S3 BA 220</option>
+            <option>SHELL OMALA S4 WE 220</option>
+            <option>SHELL OMALA S2 GX 460</option>
+            <option>SHELL TELLUS S2 MX 32</option>
+            <option>SHELL TELLUS S2 MX 68</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="hint">Date &amp; Time</label>
+          <input id="c_time" type="datetime-local" class="ac-input" style="border-width:1px">
+        </div>
+        <div class="actions" style="align-items:end; justify-content:flex-start">
+          <button id="btnPrefill" class="btn-ghost btn" type="button">Prefill from QA/QC</button>
+          <button id="btnAddRecord" class="btn" type="button">Add Record</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions" style="margin-top:20px">
+      <a class="btn-secondary btn" href="index.html">Back to Home</a>
+    </div>
+
+  </div>
+
+  <script src="assets/js/vendor/chart.umd.min.js"></script>
+  <script src="assets/js/app-core.js"></script>
+  <script src="assets/js/consumption.js"></script>
+
+  <script>
+    document.getElementById('printedAt').textContent = new Date().toLocaleString();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
+  </script>
+
+  <script src="assets/js/vendor/chart.umd.min.js"></script>
+  <script src="assets/js/vendor/html2pdf.bundle.min.js"></script>
+</body>
+</html>

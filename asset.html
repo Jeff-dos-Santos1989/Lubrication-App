@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asset Information Check</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .hidden { display: none !important; }
+
+    .page { max-width: 980px }
+    header {
+      display:grid; grid-template-columns:160px 1fr; gap:16px; align-items:center; margin-bottom:8px;
+    }
+    header img { max-width:160px; height:auto }
+    .hdr-note { text-align:right; font-size:12px; color:var(--muted) }
+    .title { font-size:22px; font-weight:700; margin:8px 0 16px }
+    .divider { border-top:2px solid var(--line); margin:16px 0 24px }
+
+    .search-card {
+      padding:16px 18px; background:#fff; border:1px solid var(--line); border-radius:12px;
+    }
+    .row { display:grid; grid-template-columns:160px 1fr 100px; gap:10px; align-items:center }
+    .lbl { color:var(--brand); font-weight:700 }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px }
+
+    .btn-clear {
+      border:none;
+      background:var(--danger);
+      color:#fff;
+      font-weight:700;
+      padding:10px 12px;
+      margin-top: -23px;
+      border-radius:10px;
+      cursor:pointer;
+      transition:all 0.15s ease;
+    }
+    .btn-clear:hover { opacity:0.9; }
+
+    .asset-wrap {
+      margin-top:18px; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    }
+    .asset-img { display:block; width:100%; height:auto; border-bottom:1px solid var(--line); }
+    .asset-caption { padding:8px 12px; font-size:12px; color:var(--muted) }
+
+    .profile { padding:16px 18px; }
+    .profile table { width:100%; border-collapse:collapse; font-size:14px; }
+    .profile th, .profile td { padding:10px 12px; border-top:1px solid var(--line); vertical-align:top; }
+    .profile th { width:38%; color:var(--brand); text-align:left; }
+    .empty { padding:16px 18px; color:var(--muted); }
+
+    .actions { display:flex; gap:12px; justify-content:flex-end; margin-top:20px }
+    .btn { border:none; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700; color:#fff; background:var(--brand) }
+    .btn-secondary { background:#444; }
+
+    @media (max-width:640px){
+      .row { grid-template-columns:1fr; gap:8px }
+      header { grid-template-columns:1fr; gap:8px }
+      .hdr-note { text-align:left }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <header>
+      <img src="Images/Logo_ArcelorMittal.png" alt="ArcelorMittal">
+      <div class="hdr-note">
+        Consult the electronic version for the current information: printed – <span id="printedAt"></span>
+      </div>
+    </header>
+
+    <div class="title">Asset Information Check</div>
+    <div class="divider"></div>
+
+    <!-- Search -->
+    <section class="search-card">
+      <div class="row">
+        <div class="lbl">Equipment / Asset ID:</div>
+        <div class="ac-wrap">
+          <input id="asset_search" class="ac-input" placeholder="Type or paste an asset name…">
+          <button class="ac-chevron" type="button" id="asset_toggle" aria-label="Open list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div id="asset_panel" class="ac-panel hidden"></div>
+          <div class="hint">Select an asset to view its reference image and profile details.</div>
+        </div>
+        <button class="btn-clear" id="asset_clear" type="button">Clear</button>
+      </div>
+    </section>
+
+    <!-- Profile (image + table) -->
+    <section id="assetProfile" class="asset-wrap hidden" aria-live="polite">
+      <img id="asset_img" class="asset-img" alt="Asset reference image">
+      <div id="asset_caption" class="asset-caption"></div>
+
+      <div class="profile">
+        <div id="profileEmpty" class="empty hidden">No profile data found for this asset.</div>
+        <table id="asset_table" class="hidden" aria-label="Asset information table"></table>
+      </div>
+    </section>
+
+    <div class="actions">
+      <a class="btn-secondary btn" href="index.html">Back to Home</a>
+    </div>
+  </div>
+
+  <!-- Shared utilities + this page logic -->
+  <script src="assets/js/app-core.js"></script>
+  <script src="assets/js/asset-page.js"></script>
+
+  <script>
+    // Printed timestamp
+    document.getElementById('printedAt').textContent = new Date().toLocaleString();
+
+    // --- Clear button logic ---
+    document.getElementById('asset_clear').addEventListener('click', () => {
+      document.getElementById('asset_search').value = '';
+      document.getElementById('asset_panel').classList.add('hidden');
+      document.getElementById('assetProfile').classList.add('hidden');
+      document.getElementById('asset_img').removeAttribute('src');
+      document.getElementById('asset_caption').textContent = '';
+      document.getElementById('asset_table').innerHTML = '';
+      document.getElementById('asset_table').classList.add('hidden');
+      document.getElementById('profileEmpty').classList.add('hidden');
+    });
+
+    // Register SW for offline (optional)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
+  </script>
+
+  <script src="assets/js/vendor/chart.umd.min.js"></script>
+  <script src="assets/js/vendor/html2pdf.bundle.min.js"></script>
+
+</body>
+</html>
