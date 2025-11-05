@@ -1,113 +1,109 @@
-// sw.js — Offline caching + re-sync for QA/QC App
-// -----------------------------------------------
+// sw.js — robust cache with versioning + safe update
+// --------------------------------------------------
+const CACHE_VERSION = 'v2025-11-05a';
+const CACHE_NAME = `qaqc-${CACHE_VERSION}`;
 
-const CACHE_NAME = 'qaqc-cache-v5'; // increment this when updating files
-
-// Files to pre-cache
-const PRECACHE_URLS = [
-  // Main pages
+// Add *all* files you need available offline.
+// (Keep this small; SW will still cache-on-demand for others.)
+const CORE_ASSETS = [
+  './',
   './index.html',
+  './form.html',
   './asset.html',
   './consumption.html',
-  './form.html',
-
   // CSS
   './assets/css/styles.css',
-
-  // Core JS
+  // JS (cache-busted URLs in HTML still work; SW matches path only)
   './assets/js/app-core.js',
+  './assets/js/form.js',
   './assets/js/asset-page.js',
   './assets/js/consumption.js',
-  './assets/js/form.js',
-
-  // Vendor libs (local, for offline mode)
   './assets/js/vendor/chart.umd.min.js',
   './assets/js/vendor/html2pdf.bundle.min.js',
-
   // Data
   './assets/data/assets.csv',
-
-  // Common images
+  './assets/data/assets_profile.csv',
+  // Images used in shell
   './Images/Logo_ArcelorMittal.png',
-
-  // Manifest
-  './manifest.webmanifest'
 ];
 
-// INSTALL EVENT → Pre-cache core assets
+// Helper: classify request
+const isJS     = (req) => req.destination === 'script' || req.url.endsWith('.js');
+const isData   = (req) => req.url.endsWith('.csv') || req.url.endsWith('.json');
+const isStyle  = (req) => req.destination === 'style' || req.url.endsWith('.css');
+const isImage  = (req) => req.destination === 'image';
+
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(PRECACHE_URLS);
-      self.skipWaiting();
-    })()
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
   );
 });
 
-// ACTIVATE EVENT → Remove old caches
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      await Promise.all(
-        keys.map(key => key === CACHE_NAME ? null : caches.delete(key))
-      );
-      self.clients.claim();
-    })()
-  );
+  event.waitUntil((async () => {
+    // purge old caches
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter(k => k.startsWith('qaqc-') && k !== CACHE_NAME)
+          .map(k => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
 });
 
-// Fetch strategy helper: Network-first (HTML/CSV)
-async function networkFirst(req) {
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const fresh = await fetch(req);
-    cache.put(req, fresh.clone());
-    return fresh;
-  } catch {
-    const cached = await cache.match(req);
-    if (cached) return cached;
-    throw new Error('Offline and no cached copy available.');
-  }
-}
-
-// Fetch strategy helper: Cache-first (CSS/JS/images)
-async function cacheFirst(req) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(req);
-  if (cached) return cached;
-  const fresh = await fetch(req);
-  cache.put(req, fresh.clone());
-  return fresh;
-}
-
-// FETCH EVENT → Smart routing
+// Strategy:
+// - JS/CSV/JSON: network-first (so new code wins), fall back to cache offline
+// - CSS/Images: stale-while-revalidate (fast, then refresh cache)
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Ignore external requests
-  if (url.origin !== location.origin) return;
+  // Only handle same-origin
+  if (url.origin !== self.location.origin) return;
 
-  // 1) HTML pages
-  if (req.destination === 'document' || req.mode === 'navigate') {
+  if (isJS(req) || isData(req)) {
     event.respondWith(networkFirst(req));
-    return;
-  }
-
-  // 2) CSV (data)
-  if (url.pathname.endsWith('/assets/data/assets.csv')) {
-    event.respondWith(networkFirst(req));
-    return;
-  }
-
-  // 3) Static files (CSS, JS, images)
-  if (['style', 'script', 'image', 'font'].includes(req.destination)) {
+  } else if (isStyle(req) || isImage(req)) {
+    event.respondWith(staleWhileRevalidate(req));
+  } else {
+    // default: try cache, then network (app shell)
     event.respondWith(cacheFirst(req));
-    return;
   }
-
-  // 4) Default fallback
-  event.respondWith(cacheFirst(req));
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const fresh = await fetch(request, { cache: 'no-store' });
+    cache.put(request, fresh.clone());
+    return fresh;
+  } catch {
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw new Response('Offline and no cached copy', { status: 503 });
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request, { ignoreSearch: true });
+  const fetchPromise = fetch(request).then((res) => {
+    cache.put(request, res.clone());
+    return res;
+  }).catch(() => null);
+  return cached || (await fetchPromise) || new Response('', { status: 504 });
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) return cached;
+  try {
+    const fresh = await fetch(request);
+    cache.put(request, fresh.clone());
+    return fresh;
+  } catch {
+    return new Response('Offline', { status: 503 });
+  }
+}
