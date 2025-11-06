@@ -54,7 +54,6 @@
     <div class="title">Lubricant Consumption</div>
     <div class="divider"></div>
 
-    <!-- Chart controls -->
     <section class="card">
       <div class="grid-3">
         <div class="row">
@@ -97,7 +96,6 @@
 
     <div class="divider"></div>
 
-    <!-- Filters -->
     <section class="card">
       <h3 style="margin:0 0 12px">Filters</h3>
       <div class="grid-3">
@@ -107,7 +105,8 @@
         </div>
         <div>
           <label class="hint">Equipment / Asset ID</label>
-          <input id="f_asset" type="text" class="ac-input" placeholder="Search asset..." style="border-width:1px">
+          <select id="f_asset" class="ac-input" style="border-width:1px">
+            </select>
         </div>
         <div>
           <label class="hint">Lubricant Type</label>
@@ -142,7 +141,6 @@
 
     <div class="divider"></div>
 
-    <!-- Table -->
     <section class="card">
       <h3 style="margin:0 0 12px">Logged Consumption</h3>
       <div style="overflow:auto">
@@ -164,23 +162,20 @@
 
     <div class="divider"></div>
 
-    <!-- Quick add -->
     <section class="card">
       <h3 style="margin:0 0 12px">Add Consumption Record</h3>
-      <div class="grid-3">
+      
+      <div class="grid-2">
         <div>
           <label class="hint">Assigned WO#</label>
           <input id="c_wo" type="text" class="ac-input" placeholder="TIN-123456" style="border-width:1px">
         </div>
         <div>
           <label class="hint">Equipment / Asset ID</label>
-          <input id="c_asset" type="text" class="ac-input" placeholder="Asset ID" style="border-width:1px">
+          <select id="c_asset" class="ac-input" style="border-width:1px">
+            </select>
         </div>
 
-        <div>
-          <label class="hint">Amount</label>
-          <input id="c_amount" type="number" inputmode="decimal" min="0" step="0.001" class="ac-input" placeholder="0.000" style="border-width:1px">
-        </div>
         <div>
           <label class="hint">Unit</label>
           <select id="c_unit" class="ac-input" style="border-width:1px">
@@ -188,7 +183,6 @@
             <option>L</option>
           </select>
         </div>
-
         <div>
           <label class="hint">Lubricant Type</label>
           <select id="c_type" class="ac-input" style="border-width:1px">
@@ -202,15 +196,20 @@
             <option>SHELL TELLUS S2 MX 68</option>
           </select>
         </div>
-
+        
+        <div>
+          <label class="hint">Amount</label>
+          <input id="c_amount" type="number" inputmode="decimal" min="0" step="0.001" class="ac-input" placeholder="0.000" style="border-width:1px">
+        </div>
         <div>
           <label class="hint">Date &amp; Time</label>
           <input id="c_time" type="datetime-local" class="ac-input" style="border-width:1px">
         </div>
-        <div class="actions" style="align-items:end; justify-content:flex-start">
-          <button id="btnPrefill" class="btn-ghost btn" type="button">Prefill from QA/QC</button>
-          <button id="btnAddRecord" class="btn" type="button">Add Record</button>
-        </div>
+      </div>
+
+      <div class="actions" style="align-items:end; justify-content:flex-start; margin-top: 16px;">
+        <button id="btnPrefill" class="btn-ghost btn" type="button">Prefill from QA/QC</button>
+        <button id="btnAddRecord" class="btn" type="button">Add Record</button>
       </div>
     </section>
 
