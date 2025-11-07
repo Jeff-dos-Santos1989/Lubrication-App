@@ -1,7 +1,13 @@
 /* LUBRICANT CONSUMPTION – unified data model
-   record = { wo, asset, lubricantType, amount, unit, date: Date }
+   record = { id, wo, asset, lubricantType, amount, unit, date: Date }
 */
 const LS_KEY = 'QAQC_CONSUMPTION_V1';
+
+// ---- Helper to get current time string ----
+function getNowISOString() {
+    const now = new Date();
+    return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
 
 // ---- Lubricant Definitions ----
 const LUBRICANT_LISTS = {
@@ -33,17 +39,20 @@ const globalEls = {
   c_type: document.getElementById('c_type'),
   c_time: document.getElementById('c_time'),
   btn_add: document.getElementById('btnAddRecord'),
+  btn_cancel_edit: document.getElementById('btnCancelEdit'), // Added cancel button
   btn_prefill: document.getElementById('btnPrefill'),
 };
 
 let allRecords = [];
 let greaseController, oilController;
+let editingRecordId = null; // Added state to track editing
 
 // ---- storage ----
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
     allRecords = raw.map(r => ({
+      id: r.id || crypto.randomUUID(), // Ensure all records have an ID
       wo: r.wo || '',
       asset: r.asset || '',
       lubricantType: r.lubricantType || '',
@@ -203,13 +212,18 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
   function renderTable(list) {
     els.table.innerHTML = list.map(r => {
       const date = r.date instanceof Date ? r.date : new Date(r.date);
-      return `<tr>
+      // ADDED buttons to the row template
+      return `<tr data-id="${r.id}">
         <td>${date.toLocaleString()}</td>
         <td>${r.wo || ''}</td>
         <td>${r.asset || ''}</td>
         <td>${r.lubricantType || ''}</td>
-        <td class="right">${(Number(r.amount)||0).toLocaleString(undefined,{maximumFractionDigits:3})}</td>
+        <td style="text-align:right">${(Number(r.amount)||0).toLocaleString(undefined,{maximumFractionDigits:3})}</td>
         <td>${r.unit}</td>
+        <td style="text-align:center">
+          <button type="button" class="btn-edit" data-id="${r.id}" style="background:var(--muted);color:white;padding:5px 8px;font-size:12px;margin:2px;">Edit</button>
+          <button type="button" class="btn-delete" data-id="${r.id}" style="background:var(--danger);color:white;padding:5px 8px;font-size:12px;margin:2px;">Del.</button>
+        </td>
       </tr>`;
     }).join('');
   }
@@ -309,6 +323,21 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
     });
     els.period.addEventListener('change', render);
     els.groupby.addEventListener('change', render);
+
+    // ADDED: Event delegation for table buttons
+    els.table.addEventListener('click', (e) => {
+      const target = e.target.closest('button'); // Find the button clicked
+      if (!target) return;
+      
+      const id = target.dataset.id;
+      if (!id) return;
+
+      if (target.classList.contains('btn-delete')) {
+          handleDelete(id);
+      } else if (target.classList.contains('btn-edit')) {
+          handleEdit(id);
+      }
+    });
   }
 
   // ---- init this section ----
@@ -322,6 +351,46 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
 // ===================================================================
 // ---- END OF SECTION CONTROLLER ----
 // ===================================================================
+
+
+// ---- Global Edit/Delete Handlers ----
+function handleDelete(id) {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+    
+    allRecords = allRecords.filter(r => r.id !== id);
+    save();
+    
+    // Re-render both sections
+    greaseController.render();
+    oilController.render();
+    
+    toast('Record deleted 🗑️', 'info');
+}
+
+function handleEdit(id) {
+    const record = allRecords.find(r => r.id === id);
+    if (!record) return toast('Record not found', 'error');
+
+    editingRecordId = id;
+
+    // Populate form
+    globalEls.c_wo.value = record.wo;
+    globalEls.c_asset.value = record.asset;
+    globalEls.c_amount.value = record.amount;
+    globalEls.c_unit.value = record.unit;
+    globalEls.c_type.value = record.lubricantType;
+    const date = record.date instanceof Date ? record.date : new Date(record.date);
+    globalEls.c_time.value = new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
+
+    // Update buttons
+    globalEls.btn_add.textContent = 'Update Record';
+    globalEls.btn_cancel_edit.classList.remove('hidden');
+
+    // Scroll to form and focus
+    globalEls.c_wo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    globalEls.c_wo.focus();
+    toast('Editing record...');
+}
 
 // ---- add record ----
 function populateAllLubricantSelect(selectEl) {
@@ -349,6 +418,19 @@ function populateAllLubricantSelect(selectEl) {
     selectEl.appendChild(oilGroup);
 }
 
+// Helper to clear and reset the "Add Record" form
+function clearAddForm() {
+    globalEls.c_wo.value = '';
+    globalEls.c_asset.value = ''; // This will reset to the first item (or be blank)
+    globalEls.c_amount.value = '';
+    // c_unit and c_type are selects, let them be
+    globalEls.c_time.value = getNowISOString();
+    
+    editingRecordId = null;
+    globalEls.btn_add.textContent = 'Add Record';
+    globalEls.btn_cancel_edit.classList.add('hidden');
+}
+
 function addRecordFromUI() {
   const wo = globalEls.c_wo.value.trim();
   const asset = globalEls.c_asset.value.trim();
@@ -361,17 +443,35 @@ function addRecordFromUI() {
   if (!(amount > 0)) { toast('Enter a valid amount', 'error'); return; }
   if (!lubricantType) { toast('Choose a lubricant type', 'error'); return; }
 
-  allRecords.push({ wo, asset, lubricantType, amount, unit, date });
+  // --- MODIFIED: Handle Edit vs Add ---
+  if (editingRecordId) {
+    const record = allRecords.find(r => r.id === editingRecordId);
+    if (record) {
+        record.wo = wo;
+        record.asset = asset;
+        record.lubricantType = lubricantType;
+        record.amount = amount;
+        record.unit = unit;
+        record.date = date;
+        toast('Record updated ✓', 'info');
+    } else {
+        toast('Error updating record', 'error');
+    }
+  } else {
+    // This is a new record
+    allRecords.push({ id: crypto.randomUUID(), wo, asset, lubricantType, amount, unit, date });
+    toast('Record added ✓', 'info');
+  }
+  // --- END MODIFICATION ---
+  
   save();
   
   // Re-render both sections
   greaseController.render();
   oilController.render();
   
-  toast('Record added ✓');
-  
-  // Clear amount
-  globalEls.c_amount.value = '';
+  // Clear form and reset state
+  clearAddForm();
 }
 
 // ---- CSV import ----
@@ -388,6 +488,7 @@ async function importCSV(file) {
         type: idx('lubricanttype'), amount: idx('amount'), unit: idx('unit')
       };
       const imported = rows.slice(1).map(r => ({
+        id: crypto.randomUUID(), // Give imported records a new ID
         date: new Date(r[idd.date] || new Date()),
         wo: r[idd.wo] || '',
         asset: r[idd.asset] || '',
@@ -404,7 +505,7 @@ async function importCSV(file) {
       greaseController.render();
       oilController.render();
       
-      toast(`Imported ${imported.length} record(s) ✓`);
+      toast(`Imported ${imported.length} record(s) ✓`, 'info');
     } catch (e) {
       console.error(e);
       toast('Failed to import CSV', 'error');
@@ -417,6 +518,7 @@ async function importCSV(file) {
 // ---- Global events ----
 function wireGlobal() {
   globalEls.btn_add.addEventListener('click', addRecordFromUI);
+  globalEls.btn_cancel_edit.addEventListener('click', clearAddForm); // Added cancel listener
   globalEls.btn_import.addEventListener('click', () => globalEls.import_file.click());
   globalEls.import_file.addEventListener('change', (e) => importCSV(e.target.files?.[0]));
 
@@ -430,6 +532,9 @@ function wireGlobal() {
 
   // Prefill from QA/QC
   globalEls.btn_prefill?.addEventListener('click', () => {
+    // Clear edit state just in case
+    clearAddForm(); 
+    
     const q = JSON.parse(localStorage.getItem('QAQC_LAST_SUBMISSION')||'{}');
     if (!q || !q.asset) return toast('No recent QA/QC data');
     globalEls.c_wo.value = q.wo || '';
@@ -439,7 +544,7 @@ function wireGlobal() {
     globalEls.c_unit.value = q.unit || 'g';
     if (q.lubricantType) globalEls.c_type.value = q.lubricantType;
     globalEls.c_time.value = q.date ? q.date.slice(0,16) : globalEls.c_time.value;
-    toast('Prefilled from QA/QC ✓');
+    toast('Prefilled from QA/QC ✓', 'info');
   });
 }
 
@@ -447,8 +552,7 @@ function wireGlobal() {
 function init() {
   // sensible default for quick add time
   if (!globalEls.c_time.value) {
-    const now = new Date();
-    globalEls.c_time.value = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    globalEls.c_time.value = getNowISOString();
   }
   load();
   
