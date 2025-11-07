@@ -9,6 +9,10 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <style>
+    /* ADDED: Utility class to hide/show elements */
+    .hidden { 
+      display: none !important; 
+    }
 
     .page{ 
       max-width: 1060px 
@@ -252,6 +256,7 @@
               <th>Lubricant Type</th>
               <th style="text-align:right">Amount</th>
               <th>Unit</th>
+              <th style="text-align:center">Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -269,7 +274,7 @@
           <div class="lbl">Period</div>
           <div>
             <select id="oil_cons_period" class="ac-input" style="border-width:1px">
-              <option value="month"selected>Monthly</option>
+              <option value="month" selected>Monthly</option>
               <option value="year">Yearly</option>
               <option value="5y">5-Year Buckets</option>
             </select>
@@ -345,6 +350,7 @@
               <th>Lubricant Type</th>
               <th style="text-align:right">Amount</th>
               <th>Unit</th>
+              <th style="text-align:center">Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -389,6 +395,7 @@
       </div>
       <div class="actions" style="align-items:end; justify-content:flex-start; margin-top: 24px;">
         <button id="btnAddRecord" class="btn" type="button">Add Record</button>
+        <button id="btnCancelEdit" class="btn-ghost btn hidden" type="button">Cancel Edit</button>
         <button id="btnImportCsv" class="btn-ghost btn" type="button">Import CSV</button>
         <input id="imp_file" type="file" accept=".csv,text/csv" style="display:none">
       </div>
