@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asset Manager</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <style>
+    .hidden { display: none !important; }
+    .page { max-width: 980px; }
+    .title { font-size:22px; font-weight:700; margin:8px 0 16px; }
+    .divider { border-top:2px solid var(--line); margin:16px 0 24px; }
+    .card { padding:16px 18px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .hint { font-size:12px; color:var(--muted); margin-top:4px; }
+    .lbl { font-weight: 700; margin-bottom: 4px; display: block; }
+    
+    .actions { display:flex; gap:12px; justify-content:flex-end; margin-top:20px; }
+    .btn { border:none; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700; color:#fff; background:var(--brand); }
+    .btn-secondary { background:#444; }
+    .btn-ghost { background:#999; }
+    
+    #photo_preview_wrap { margin-top: 10px; }
+    #photo_preview {
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    
+    @media (max-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <header>
+      <img src="Images/Logo_ArcelorMittal.png" alt="ArcelorMittal">
+    </header>
+
+    <div class="title">Asset Manager</div>
+    <div class="divider"></div>
+
+    <section class="card">
+      <h3 style="margin:0 0 16px">Asset Details</h3>
+      
+      <div class="grid-2">
+        <div>
+          <label class="lbl" for="line_section">Line Section</label>
+          <input type="text" id="line_section" placeholder="e.g., Entry Section">
+        </div>
+        <div>
+          <label class="lbl" for="asset_id">Equipment / Asset ID <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="asset_id" placeholder="e.g., BRU - 001 - ...">
+          <div class="hint">This is the unique ID. Cannot be changed after saving.</div>
+        </div>
+        <div>
+          <label class="lbl" for="manuf_code_pillow">Manufacturer Code Pillow Block</label>
+          <input type="text" id="manuf_code_pillow">
+        </div>
+        <div>
+          <label class="lbl" for="manuf_pillow">Manufacturer Pillow Block</label>
+          <input type="text" id="manuf_pillow">
+        </div>
+        <div>
+          <label class="lbl" for="manuf_code_bearing">Manufacturer Code Bearing</label>
+          <input type="text" id="manuf_code_bearing">
+        </div>
+        <div>
+          <label class="lbl" for="manuf_bearing">Manufacturer Bearing</label>
+          <input type="text" id="manuf_bearing">
+        </div>
+        <div>
+          <label class="lbl" for="bearing_type">Bearing Type</label>
+          <input type="text" id="bearing_type">
+        </div>
+        <div>
+          <label class="lbl" for="lube_type">Lubricant Type</label>
+          <select id="lube_type">
+            <option>Grease</option>
+            <option>Oil</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="grease_fitting_pos">Grease Fitting Position</label>
+          <input type="text" id="grease_fitting_pos">
+        </div>
+        <div>
+          <label class="lbl" for="bearing_volume">Bearing Volume</label>
+          <input type="number" id="bearing_volume" value="0">
+        </div>
+        <div>
+          <label class="lbl" for="fill_percent">Pillow Block 1st Fill %</label>
+          <input type="number" id="fill_percent" value="0">
+        </div>
+        <div>
+          <label class="lbl" for="fill_grams">Pillow Block 1st Fill g</label>
+          <input type="number" id="fill_grams" value="0">
+        </div>
+        <div>
+          <label class="lbl" for="lube_grease_g">Lubrication Grease (g)</label>
+          <input type="number" id="lube_grease_g" value="0">
+        </div>
+        <div>
+          <label class="lbl" for="lube_period_weeks">Lubrication Period (weeks)</label>
+          <input type="number" id="lube_period_weeks" value="0">
+        </div>
+        <div>
+          <label class="lbl" for="lub_point_id">Lub Point ID</label>
+          <input type="text" id="lub_point_id">
+        </div>
+        <div>
+          <label class="lbl" for="orientation_point">Orientation Point</label>
+          <select id="orientation_point">
+            <option>Driven Side</option>
+            <option>OPS Side</option>
+          </select>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div>
+        <label class="lbl" for="asset_photo">Asset Photo <span style="color:var(--danger)">*</span></label>
+        <input type="file" id="asset_photo" accept="image/png, image/jpeg">
+        <div class="hint">Mandatory. This will be used in the asset info page and QA/QC form.</div>
+        <div id="photo_preview_wrap" class="hidden">
+          <img id="photo_preview" alt="Asset photo preview">
+        </div>
+      </div>
+    </section>
+
+    <div class="actions" style="justify-content:flex-start;">
+      <button id="btnSave" class="btn" type="button">Save Asset</button>
+      <button id="btnCancel" class="btn-ghost btn hidden" type="button">Cancel Edit</button>
+      <a class="btn-secondary btn" href="index.html" style="margin-left: auto;">Back to Home</a>
+    </div>
+
+  </div>
+
+  <script src="assets/js/app-core.js"></script>
+  <script src="assets/js/asset-manager.js"></script>
+
+</body>
+</html>
