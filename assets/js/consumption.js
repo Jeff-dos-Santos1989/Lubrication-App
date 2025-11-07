@@ -26,6 +26,21 @@ const LUBRICANT_LISTS = {
 };
 const ALL_LUBRICANTS = [...LUBRICANT_LISTS.GREASE, ...LUBRICANT_LISTS.OIL];
 
+// === ADDED: Annual lubricant targets from your image ===
+const LUBRICANT_TARGETS = {
+  // Grease (g) - Assuming 24000g/yr
+  'MOBIL UNIREX EP2': 24000,
+  'MOBIL MOBILITH SHC 460': 24000,
+  // Oil (L)
+  'MOBIL GEAR MS100': 500,
+  'SHELL MORLINA S3 BA 220': 300,
+  'SHELL OMALA S4 WE 220': 60,
+  'SHELL OMALA S2 GX 460': 450,
+  'SHELL TELLUS S2 MX 32': 20,
+  'SHELL TELLUS S2 MX 68': 20
+};
+// ========================================================
+
 // ---- Global Elements (Add Record / Import) ----
 const globalEls = {
   // actions
@@ -222,7 +237,7 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
         <td>${r.unit}</td>
         <td style="text-align:center">
           <button type="button" class="btn-edit" data-id="${r.id}" style="background:var(--muted);color:white;padding:5px 8px;font-size:12px;margin:2px;">Edit</button>
-          <button type="button" class="btn-delete" data-id="${r.id}" style="background:var(--danger);color:white;padding:5px 8px;font-size:12px;margin:2px;">Del.</button>
+          <button type="button" class="btn-delete" data-id="${r.id}" style="background:var(--danger);color:white;padding:5px 8px;font-size:12px;margin:2px;">Delete</button>
         </td>
       </tr>`;
     }).join('');
@@ -271,11 +286,32 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
     for (const m of buckets.values()) for (const g of m.keys()) groups.add(g);
 
     const datasets = [];
+    const dataColor = '#007bff'; // === SET BLUE COLOR FOR ACTUAL DATA ===
+    
     for (const g of groups) {
       const dataG = labels.map(l => (buckets.get(l).get(g)||{g:0}).g || 0);
-      if (dataG.some(v=>v>0)) datasets.push({ label: `${g} (g)`, data: dataG, borderWidth: 2, pointRadius: 2 });
+      if (dataG.some(v=>v>0)) {
+        datasets.push({ 
+          label: `${g} (g)`, 
+          data: dataG, 
+          borderWidth: 2, 
+          pointRadius: 2,
+          borderColor: dataColor, // <-- APPLIED BLUE
+          backgroundColor: dataColor + '33' // Light blue fill
+        });
+      }
+      
       const dataL = labels.map(l => (buckets.get(l).get(g)||{L:0}).L || 0);
-      if (dataL.some(v=>v>0)) datasets.push({ label: `${g} (L)`, data: dataL, borderWidth: 2, pointRadius: 2 });
+      if (dataL.some(v=>v>0)) {
+        datasets.push({ 
+          label: `${g} (L)`, 
+          data: dataL, 
+          borderWidth: 2, 
+          pointRadius: 2,
+          borderColor: dataColor, // <-- APPLIED BLUE
+          backgroundColor: dataColor + '33' // Light blue fill
+        });
+      }
     }
     
     // Filter datasets by unit
@@ -292,7 +328,44 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
 
     const list = applyFilters(allRecords); // Filter from global list
     renderTable(list);
-    const {labels, datasets} = buildSeries(list);
+    
+    let {labels, datasets} = buildSeries(list);
+
+    // === NEW LOGIC: ADD TARGET LINE ===
+    const selectedLube = els.f_type.value;
+    if (selectedLube) { // Check if a specific lubricant is selected
+      const annualTarget = LUBRICANT_TARGETS[selectedLube];
+      
+      if (annualTarget) {
+        const period = els.period.value;
+        let periodTarget;
+
+        if (period === 'month') {
+          periodTarget = annualTarget / 12;
+        } else if (period === '5y') {
+          periodTarget = annualTarget * 5;
+        } else {
+          periodTarget = annualTarget; // Default is 'year'
+        }
+
+        const targetData = new Array(labels.length).fill(periodTarget);
+        
+        const targetDataset = {
+          type: 'line',
+          label: 'Target',
+          data: targetData,
+          borderColor: '#d92b2b', // <<< CHANGED BACK TO RED
+          borderWidth: 2,
+          borderDash: [5, 5], 
+          fill: false,
+          pointRadius: 0, 
+          order: 0 
+        };
+        datasets.push(targetDataset);
+      }
+    }
+    // === END NEW LOGIC ===
+
     const ch = ensureChart();
     ch.data.labels = labels;
     ch.data.datasets = datasets;
@@ -324,14 +397,11 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
     els.period.addEventListener('change', render);
     els.groupby.addEventListener('change', render);
 
-    // ADDED: Event delegation for table buttons
     els.table.addEventListener('click', (e) => {
-      const target = e.target.closest('button'); // Find the button clicked
+      const target = e.target.closest('button'); 
       if (!target) return;
-      
       const id = target.dataset.id;
       if (!id) return;
-
       if (target.classList.contains('btn-delete')) {
           handleDelete(id);
       } else if (target.classList.contains('btn-edit')) {
@@ -345,7 +415,7 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
   wire();
   
   return {
-    render // Expose the render function
+    render 
   };
 }
 // ===================================================================
@@ -356,24 +426,17 @@ function createConsumptionSection(type, elementPrefix, lubricantList) {
 // ---- Global Edit/Delete Handlers ----
 function handleDelete(id) {
     if (!confirm('Are you sure you want to delete this record?')) return;
-    
     allRecords = allRecords.filter(r => r.id !== id);
     save();
-    
-    // Re-render both sections
     greaseController.render();
     oilController.render();
-    
     toast('Record deleted 🗑️', 'info');
 }
 
 function handleEdit(id) {
     const record = allRecords.find(r => r.id === id);
     if (!record) return toast('Record not found', 'error');
-
     editingRecordId = id;
-
-    // Populate form
     globalEls.c_wo.value = record.wo;
     globalEls.c_asset.value = record.asset;
     globalEls.c_amount.value = record.amount;
@@ -381,12 +444,8 @@ function handleEdit(id) {
     globalEls.c_type.value = record.lubricantType;
     const date = record.date instanceof Date ? record.date : new Date(record.date);
     globalEls.c_time.value = new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
-
-    // Update buttons
     globalEls.btn_add.textContent = 'Update Record';
     globalEls.btn_cancel_edit.classList.remove('hidden');
-
-    // Scroll to form and focus
     globalEls.c_wo.scrollIntoView({ behavior: 'smooth', block: 'center' });
     globalEls.c_wo.focus();
     toast('Editing record...');
@@ -421,11 +480,9 @@ function populateAllLubricantSelect(selectEl) {
 // Helper to clear and reset the "Add Record" form
 function clearAddForm() {
     globalEls.c_wo.value = '';
-    globalEls.c_asset.value = ''; // This will reset to the first item (or be blank)
+    globalEls.c_asset.value = ''; 
     globalEls.c_amount.value = '';
-    // c_unit and c_type are selects, let them be
     globalEls.c_time.value = getNowISOString();
-    
     editingRecordId = null;
     globalEls.btn_add.textContent = 'Add Record';
     globalEls.btn_cancel_edit.classList.add('hidden');
@@ -443,7 +500,6 @@ function addRecordFromUI() {
   if (!(amount > 0)) { toast('Enter a valid amount', 'error'); return; }
   if (!lubricantType) { toast('Choose a lubricant type', 'error'); return; }
 
-  // --- MODIFIED: Handle Edit vs Add ---
   if (editingRecordId) {
     const record = allRecords.find(r => r.id === editingRecordId);
     if (record) {
@@ -458,19 +514,13 @@ function addRecordFromUI() {
         toast('Error updating record', 'error');
     }
   } else {
-    // This is a new record
     allRecords.push({ id: crypto.randomUUID(), wo, asset, lubricantType, amount, unit, date });
     toast('Record added ✓', 'info');
   }
-  // --- END MODIFICATION ---
   
   save();
-  
-  // Re-render both sections
   greaseController.render();
   oilController.render();
-  
-  // Clear form and reset state
   clearAddForm();
 }
 
@@ -488,7 +538,7 @@ async function importCSV(file) {
         type: idx('lubricanttype'), amount: idx('amount'), unit: idx('unit')
       };
       const imported = rows.slice(1).map(r => ({
-        id: crypto.randomUUID(), // Give imported records a new ID
+        id: crypto.randomUUID(), 
         date: new Date(r[idd.date] || new Date()),
         wo: r[idd.wo] || '',
         asset: r[idd.asset] || '',
@@ -500,11 +550,8 @@ async function importCSV(file) {
       if (!imported.length) return toast('No valid rows found in CSV', 'error');
       allRecords = allRecords.concat(imported);
       save();
-      
-      // Re-render both sections
       greaseController.render();
       oilController.render();
-      
       toast(`Imported ${imported.length} record(s) ✓`, 'info');
     } catch (e) {
       console.error(e);
@@ -512,17 +559,16 @@ async function importCSV(file) {
     }
   };
   reader.readAsText(file);
-  globalEls.import_file.value = null; // Clear file input
+  globalEls.import_file.value = null; 
 }
 
 // ---- Global events ----
 function wireGlobal() {
   globalEls.btn_add.addEventListener('click', addRecordFromUI);
-  globalEls.btn_cancel_edit.addEventListener('click', clearAddForm); // Added cancel listener
+  globalEls.btn_cancel_edit.addEventListener('click', clearAddForm); 
   globalEls.btn_import.addEventListener('click', () => globalEls.import_file.click());
   globalEls.import_file.addEventListener('change', (e) => importCSV(e.target.files?.[0]));
 
-  // Numeric guard on amount field
   globalEls.c_amount.addEventListener('input', () => {
     let v = String(globalEls.c_amount.value).replace(/[^0-9.]/g,'');
     const dot = v.indexOf('.');
@@ -530,11 +576,8 @@ function wireGlobal() {
     globalEls.c_amount.value = v;
   });
 
-  // Prefill from QA/QC
   globalEls.btn_prefill?.addEventListener('click', () => {
-    // Clear edit state just in case
     clearAddForm(); 
-    
     const q = JSON.parse(localStorage.getItem('QAQC_LAST_SUBMISSION')||'{}');
     if (!q || !q.asset) return toast('No recent QA/QC data');
     globalEls.c_wo.value = q.wo || '';
@@ -550,24 +593,15 @@ function wireGlobal() {
 
 // ---- init ----
 function init() {
-  // sensible default for quick add time
   if (!globalEls.c_time.value) {
     globalEls.c_time.value = getNowISOString();
   }
   load();
-  
-  // build global selects
   populateAssetSelect(globalEls.c_asset, false);
   populateAllLubricantSelect(globalEls.c_type);
-  
-  // wire global events
   wireGlobal();
-  
-  // Create controllers
   greaseController = createConsumptionSection('Grease', 'grease', LUBRICANT_LISTS.GREASE);
   oilController = createConsumptionSection('Oil', 'oil', LUBRICANT_LISTS.OIL);
-  
-  // Initial render
   greaseController.render();
   oilController.render();
 }
@@ -581,9 +615,7 @@ function refreshAll() {
     oilController?.render();
   } catch(e) {}
 }
-// 1) Same-tab broadcast from form.js
 window.addEventListener('consumption:record-added', refreshAll);
-// 2) Cross-tab storage events
 window.addEventListener('storage', (e) => {
   if (e.key === LS_KEY) { refreshAll(); }
 });
